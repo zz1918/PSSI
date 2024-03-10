@@ -429,6 +429,14 @@ Rational* make_rational(string expression, string s)
 	return make_rational(expression, a);
 }
 
+vector<char>* make_alphabets(string s)
+{
+	vector<char>* a = new vector<char>;
+	for (int i = 0; i < s.length(); ++i)
+		a->push_back(s[i]);
+	return a;
+}
+
 Rational* sum(Rational* r1, Rational* r2)
 {
 	assert(r1->vars() == r2->vars());

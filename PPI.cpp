@@ -64,8 +64,11 @@ class trial
 	Vector4d initial;
 	Vector4d target;
 	double epsilon;
+	vector<char>* alphabets;
 	Rational* Surface[2][3];
 	Rational* Diff[3];							// The W function.
+	Rational* JDiff[3][4];						// Jacobian function of W function (JW).
+	Rational* DT[4];							// Determinant function of T matrix given by erasing the i-th column from JW.
 	string vars;
 	double stick_size;
 	Vector3d target3d;
@@ -81,11 +84,35 @@ public:
 		vars = "";
 		for (int i = 0; i < 4; ++i)
 			vars += string(data["vars"][i])[0];
+		alphabets = make_alphabets(vars);
 		for (int i = 0; i < 3; ++i)
 		{
-			Surface[0][i] = make_rational(string(data["surface1"][i]), vars.substr(0, 2));
-			Surface[1][i] = make_rational(string(data["surface2"][i]), vars.substr(2, 2));
-			Diff[i] = make_rational("(" + string(data["surface1"][i]) + ")-(" + string(data["surface2"][i]) + ")", vars);
+			Surface[0][i] = make_rational(string(data["surface1"][i]), alphabets);
+			Surface[1][i] = make_rational(string(data["surface2"][i]), alphabets);
+			Diff[i] = make_rational("(" + string(data["surface1"][i]) + ")-(" + string(data["surface2"][i]) + ")", alphabets);
+		}
+		for (int i = 0; i < 3; ++i)
+			for (int j = 0; j < 4; ++j)
+				JDiff[i][j] = Diff[i]->deriv(j);
+		const int emits[4][3] = { {1,2,3},{0,2,3},{0,1,3},{0,1,2} };
+		for (int i = 0; i < 4; ++i)
+		{
+			Rational* DTi = new Rational(alphabets, 0.0);
+			for (int j = 0; j < 3; ++j)
+			{
+				Rational* DTij = new Rational(alphabets, 1.0);
+				for (int k = 0; k < 3; ++k)
+					DTij = prod(JDiff[k][emits[i][(j + k) % 3], DTij);
+				DTi = sum(DTi, DTij);
+			}
+			for (int j = 0; j < 3; ++j)
+			{
+				Rational* DTij = new Rational(alphabets, 1.0);
+				for (int k = 0; k < 3; ++k)
+					DTij = prod(JDiff[k][emits[i][(j - k + 3) % 3], DTij);
+				DTi = diff(DTi, DTij);
+			}
+			DT[i] = DTi;
 		}
 	}
 	Rational* surface(int i, int j)
@@ -94,7 +121,7 @@ public:
 		assert(j == 0 || j == 1 || j == 2);
 		return Surface[i][j];
 	}
-	Rational* diff(int i)
+	Rational* the_diff(int i)
 	{
 		assert(i == 0 || i == 1 || i == 2);
 		return Diff[i];
@@ -227,7 +254,7 @@ public:
 		MatrixId DTPQ = DeterInterval(MatrixId(P, Q));
 		bool exist_i = false;
 		for (int i = 0; i < 4; ++i)
-			if (DTI(i).ncontains(0.0))
+			if (DTPQ(i).ncontains(0.0))
 				exist_i = true;
 		if (!exist_i)
 			return false;
@@ -259,14 +286,22 @@ public:
 		if (!if_then)
 			return false;
 		// Step d: determination not contain 0 if then.
-		MatrixId JWPQQ = JacobInterval(MatrixId(P, QQ));
-		MatrixId DTPQQ = DeterInterval(JWPQQ, true);
+		MatrixId JWPQQ = JacobInterval(MatrixId(P, QQ));			// J(W)(\B_{P,Q'})
+		MatrixId DTPQQ = DeterInterval(JWPQQ, true);				// \det(T_i(\B_{P,Q'}))
 		if_then = true;
 		JWPQQ.add_row();
-		for(int i=0;i<4;++i)
+		vector<Id> x;												// MatrixId of \B_{P,Q'} in variable form
+		for (int i = 0; i < 4; ++i)
+			x.push_back(Id(P(i), QQ(i)));
+		for (int i = 0; i < 4; ++i)
 			if (DTPQQ(i).contains(0.0))
 			{
-
+				MatrixID JWDTPQQ = JWPQQ;							// J(W,\det(T_i))(\B_{P,Q'})
+				Rational* DTi = DT[i];								// \det(T_i);
+				for (int j = 0; j < 4; ++j)
+					JWDTPQQ.set(3, j, DT[i]->deriv<Id>(x, j));
+				if (JWDTPQQ.determinant().contains(0.0))
+					if_then = false;
 			}
 		if (!if_then)
 			return false;
