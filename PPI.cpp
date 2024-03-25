@@ -102,14 +102,14 @@ public:
 			{
 				Rational* DTij = new Rational(alphabets, 1.0);
 				for (int k = 0; k < 3; ++k)
-					DTij = prod(JDiff[k][emits[i][(j + k) % 3], DTij);
+					DTij = prod(JDiff[k][emits[i][(j + k) % 3]], DTij);
 				DTi = sum(DTi, DTij);
 			}
 			for (int j = 0; j < 3; ++j)
 			{
 				Rational* DTij = new Rational(alphabets, 1.0);
 				for (int k = 0; k < 3; ++k)
-					DTij = prod(JDiff[k][emits[i][(j - k + 3) % 3], DTij);
+					DTij = prod(JDiff[k][emits[i][(j - k + 3) % 3]], DTij);
 				DTi = diff(DTi, DTij);
 			}
 			DT[i] = DTi;
@@ -174,7 +174,7 @@ public:
 		for (int i = 0; i < 4; ++i)
 			x.push_back(I(i));
 		for (int i = 0; i < 3; ++i)
-			V.set(i, 1, Diff[i]->value<Id>(x, i));
+			V.set(i, 1, Diff[i]->value<Id>(x));
 		return V;
 	}
 	MatrixId FaceValueInterval(MatrixId I, Vector4d Q, int t)
@@ -185,7 +185,7 @@ public:
 		for (int i = 0; i < 4; ++i)
 			x.push_back((i == t) ? Id(Q(i), Q(i)) : I(i));
 		for (int i = 0; i < 3; ++i)
-			V.set(i, 1, Diff[i]->value<Id>(x, i));
+			V.set(i, 1, Diff[i]->value<Id>(x));
 		return V;
 	}
 	MatrixId JacobInterval(MatrixId I)			// I is interval of Vector4d, return the interval of Jacobian
@@ -236,10 +236,10 @@ public:
 		}
 		return D;
 	}
-	bool Strong_Monotonic(MatrixId I, bool DI = false)	// Strongly monotonic, the first part of Lemma 5.
+	bool Strong_Monotonic(MatrixId I, bool DI = false)			// Strongly monotonic, the first part of Lemma 5.
 	{
 		MatrixId DTI;
-		if (DI)											// If DTI is calculated before the function, use it directly.
+		if (DI)													// If DTI is calculated before the function, use it directly.
 			DTI = I;
 		else
 			DTI = DeterInterval(I);
@@ -248,7 +248,7 @@ public:
 				return false;
 		return true;
 	}
-	bool Weak_Monotonic(Vector4d P, Vector4d Q)								// Weakly monotonic, the second part of Lemma 5.
+	bool Weak_Monotonic(Vector4d P, Vector4d Q)					// Weakly monotonic, the second part of Lemma 5.
 	{
 		// Step a: exists i such that 0\notin \det(T_i(PQ)).
 		MatrixId DTPQ = DeterInterval(MatrixId(P, Q));
@@ -296,7 +296,7 @@ public:
 		for (int i = 0; i < 4; ++i)
 			if (DTPQQ(i).contains(0.0))
 			{
-				MatrixID JWDTPQQ = JWPQQ;							// J(W,\det(T_i))(\B_{P,Q'})
+				MatrixId JWDTPQQ = JWPQQ;							// J(W,\det(T_i))(\B_{P,Q'})
 				Rational* DTi = DT[i];								// \det(T_i);
 				for (int j = 0; j < 4; ++j)
 					JWDTPQQ.set(3, j, DT[i]->deriv<Id>(x, j));
@@ -307,7 +307,13 @@ public:
 			return false;
 		return true;
 	}
-	vector<int> IsTerminate(Vector4d P, Vector4d Q)
+	bool Strongly_Monotonic(Vector4d P, Vector4d Q)						// Lemma 5.
+	{
+		if (Strong_Monotonic(MatrixId(P, Q)))
+			return true;
+		return Weak_Monotonic(P, Q);
+	}
+	vector<int> IsTerminate(Vector4d P, Vector4d Q)						// Algorithm 1.
 	{
 		// Step 1: initialization of S.
 		vector<int> S;							// {0,1,2,3} instead of {1,2,3,4}.
@@ -323,22 +329,14 @@ public:
 		if (test_pass)
 			return S;
 		// Step 3: check whether it is a strongly monotonic curve segment using Lemma 5.
-		MatrixId PQ(P, Q);
-		MatrixId DTPQ = DeterInterval(PQ);
-		bool exist_k = false, exist_kk = false;
-		for (int k = 0; k < 4; ++k)
-			if (DTPQ(k).ncontains(0.0))
-				exist_k = true;
-		for (int kk = 0; kk < 4; ++kk)
-			if (abs(DTQ(kk)) < UE)
-				exist_kk = true;
-		if (exist_k && exist_kk)
-		{
-			if (Monotonic(DTPQ, true))
-				return Empty;
-
-		}
+		if (Strongly_Monotonic(P,Q))
+			return Empty;
 		// Step 4:
+		MatrixId DTJ = DeterInterval(MatrixId(P,Q));
+		S.clear();
+		for (int j = 0; j < 4; ++j)
+			if (DTJ(j).contains(0.0))					// Instead of extract, we clear S and push the unextracted instead.
+				S.push_back(j);
 		return S;
 	}
 	void view(ostream& os = cout)

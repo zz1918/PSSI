@@ -336,6 +336,10 @@ public:
                     return false;
         return true;
     }
+    bool ncontains(Matrix<Scarlar, 1, -1> X)
+    {
+        return !contains(X);
+    }
     bool is_include(MatrixInterval<Scarlar> M)
     {
         if (rows() != M.rows())
@@ -468,10 +472,6 @@ public:
     MatrixInterval<Scarlar> operator*(Matrix<Scarlar, -1, -1> X)
     {
         return operator*(MatrixInterval<Scarlar>(X));
-    }
-    MatrixInterval<Scarlar> transpose()
-    {
-        return MatrixInterval<Scarlar>(inf.transpose(), sup.transpose(), false);
     }
     interval<Scarlar> trace()
     {
