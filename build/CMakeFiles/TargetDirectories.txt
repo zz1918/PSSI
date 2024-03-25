@@ -1,9 +1,0 @@
-C:/Users/zhaoq/Desktop/Study/My_Geometry_Library/Curve_Tracing/build/CMakeFiles/PPI.dir
-C:/Users/zhaoq/Desktop/Study/My_Geometry_Library/Curve_Tracing/build/CMakeFiles/ALL_BUILD.dir
-C:/Users/zhaoq/Desktop/Study/My_Geometry_Library/Curve_Tracing/build/CMakeFiles/ZERO_CHECK.dir
-C:/Users/zhaoq/Desktop/Study/My_Geometry_Library/Curve_Tracing/build/Interval/CMakeFiles/Interval.dir
-C:/Users/zhaoq/Desktop/Study/My_Geometry_Library/Curve_Tracing/build/Rational/CMakeFiles/Rational.dir
-C:/Users/zhaoq/Desktop/Study/My_Geometry_Library/Curve_Tracing/build/Rational/Expression/CMakeFiles/Expression.dir
-C:/Users/zhaoq/Desktop/Study/My_Geometry_Library/Curve_Tracing/build/Json/CMakeFiles/Json.dir
-C:/Users/zhaoq/Desktop/Study/My_Geometry_Library/Curve_Tracing/build/Vector/CMakeFiles/Vector.dir
-C:/Users/zhaoq/Desktop/Study/My_Geometry_Library/Curve_Tracing/build/Newton/CMakeFiles/Newton.dir
