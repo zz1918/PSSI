@@ -33,7 +33,7 @@ unsigned int catch_int(string expression, int& i)
 		++j;
 	int begin = i, length = j - i;
 	i = j - 1;
-	return unsigned int(stoi(expression.substr(begin, length)));
+	return (unsigned int)(stoi(expression.substr(begin, length)));
 }
 // Catch the number from place i, pointer i will point to end number place j after returning
 double catch_num(string expression, int& i)

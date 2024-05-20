@@ -3,3 +3,13 @@
 # Using Interval/Newton/Ration methods from zz1918's geometric library.
 
 # Main program: PPI.cpp
+
+#How to use this:
+
+#Step 1, turn on linux command lines such as cygwin;
+#Step 2, go to the PSSI/build directory;
+#Step 3, clear all files in the build directory;
+#Step 4, type command "cmake ..";
+#Step 5, type command "cmake --build .";
+#Step 6, type command "Debug/PPI" to run the tests;
+#Step 7, if you want to change the input, go to the PSSI/input directory and change the inputs.js file, which uses json format as input.
