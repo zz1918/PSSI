@@ -135,8 +135,8 @@ public:
 				t *= alpha;
 				new_norm = function(result + t * delta).squaredNorm();
 			}
-			//if (t <= t_epsilon)
-			//	cout << "No available backtracking move." << endl;
+			if (t <= t_epsilon)
+				cout << "No available backtracking move. Possibly no root." << endl;
 		}
 		move_result(t * delta);
 		++step;

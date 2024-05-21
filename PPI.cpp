@@ -145,6 +145,13 @@ public:
 		assert(i == 0 || i == 1 || i == 2);
 		return Diff[i];
 	}
+	Vector3d Value(Vector4d V)
+	{
+		vector<double> x;
+		for (int i = 0; i < 4; ++i)
+			x.push_back(V(i));
+		return Vector3d(Surface[0][0]->value<double>(x), Surface[0][1]->value<double>(x), Surface[0][2]->value<double>(x));
+	}
 	Vector4d find_root(Vector4d ini, Vector4d null)
 	{
 		solving[0] = Diff[0];
@@ -655,7 +662,7 @@ public:
 		}
 		return S;
 	}
-	vector<pair<Vector4d, Vector4d>> Curve_Trace(Vector4d ini, vector<Vector4d> term, double l)	// Algorithm 4.
+	vector<pair<Vector4d, Vector4d>> Curve_Trace(Vector4d ini, vector<Vector4d> term, double l,double xi)	// Algorithm 4.
 	{
 		cout << term.size() << endl;
 
@@ -731,8 +738,31 @@ public:
 		}
 
 		// Step 8, decompose S' into smaller intervals.
+		vector<pair<Vector4d, Vector4d>> SSSS;
 
-		return SS;
+		for (int i = 0; i < SS.size(); ++i)
+		{
+			double box_size = (Value(SS[i].first) - Value(SS[i].second)).norm();
+			double cover_size = (SS[i].first - SS[i].second).norm();
+			if (box_size < xi)
+				SSSS.push_back(SS[i]);
+			else
+			{
+				int k = 2 * int(box_size / xi);
+				Vector4d Q = get_next(SS[i].first, cover_size / k);
+				SSSS.push_back(make_pair(SS[i].first, Q));
+				while (MatrixId(SS[i].first, SS[i].second).contains(Q))
+				{
+					Vector4d R = get_next(Q, cover_size / k);
+					if (MatrixId(SS[i].first, SS[i].second).contains(R))
+						SSSS.push_back(make_pair(Q, R));
+					Q = R;
+				}
+				SSSS.push_back(make_pair(Q, SS[i].second));
+			}
+		}
+
+		return SSSS;
 	}
 	void view(ostream& os = cout)
 	{
@@ -816,7 +846,7 @@ void test6(trial t)
 {
 	vector<Vector4d> terminates;
 	terminates.push_back(t.target);
-	vector<pair<Vector4d, Vector4d>> S = t.Curve_Trace(t.initial, terminates, t.stick_size);
+	vector<pair<Vector4d, Vector4d>> S = t.Curve_Trace(t.initial, terminates, t.stick_size, 1.0);
 	cout << endl << "The boxes are:" << endl;
 	for (int i = 0; i < S.size(); ++i)
 		cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << ")" << endl;
