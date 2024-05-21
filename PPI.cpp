@@ -4,7 +4,7 @@
 #include<iomanip>
 #include<random>
 #include<vector>
-#include<queue>
+#include<stack>
 #include<ctime>
 #include<Eigen/Dense>
 #include<interval.h>
@@ -71,22 +71,24 @@ class trial
 	vector<Vector4d> criticals_3d;
 	int critical_size;
 	int critical_size_3d;
+	double boundary;
 	Rational* Surface[2][3];
 	Rational* Diff[3];							// The W function.
 	Rational* JDiff[3][4];						// Jacobian function of W function (JW).
 	Rational* DT[4];							// Determinant function of T matrix given by erasing the i-th column from JW.
 	Rational* DTC[3];							// Determinant function of TC matrix.
 	string vars;
-	double stick_size;
 	Vector3d target3d;
 public:
 	Vector4d initial;
 	Vector4d target;
+	double stick_size;
 	trial() {}
 	trial(json data)
 	{
 		epsilon = stod(string(data["epsilon"]));
 		stick_size = stod(string(data["stick_size"]));
+		boundary = stod(string(data["boundary"]));
 		initial = read_vec4(data["initial"]);
 		target = read_vec4(data["target"]);
 		target3d = read_vec3(data["target3d"]);
@@ -313,6 +315,8 @@ public:
 	}
 	bool Weak_Monotonic(Vector4d P, Vector4d Q)					// Weakly monotonic, the second part of Lemma 5.
 	{
+		//cout << "Checking weakly monotonic (" << P.transpose() << ")-(" << Q.transpose() << ")" << endl;
+
 		// Step a: exists i such that 0\notin \det(T_i(PQ)).
 		MatrixId DTPQ = DeterInterval(MatrixId(P, Q));
 		bool exist_i = false;
@@ -321,7 +325,8 @@ public:
 				exist_i = true;
 		if (!exist_i)
 			return false;
-		//cout << "Step a finished!" << endl;
+
+		//cout << "P-Q exsits a monotonic direction." << endl;
 
 		// Step b: B_{P,Q'}^{q_i} if then.
 		RowVector4d DTP = Deter(P), DTQ = Deter(Q);
@@ -332,32 +337,28 @@ public:
 			else
 				Epsilon(i) = WE;
 		Vector4d QQ = Q + Epsilon.cwiseProduct(Q - P);						// This is Q'.
-		bool if_then = true;
+		//cout << "Q' is (" << QQ.transpose() << ")" << endl;
 		MatrixId DTPQQq = FaceDeterInterval(MatrixId(P, QQ), Q);
 		for (int i = 0; i < 4; ++i)
 			if (abs(DTQ(i)) >= UE && DTPQQq(i).contains(0.0))				// DTPQQq(i) needed to be implemented.
-				if_then = false;
-		if (!if_then)
-			return false;
-		//cout << "Step b finished!" << endl;
+				return false;
+
+		//cout << "P-Q' extended is monotonic." << endl;
 
 		// Step c: some j if then.
-		if_then = true;
 		for (int i = 0; i < 4; ++i)
-			if (abs(DTQ(i)) <= UE)
+			if (abs(DTQ(i)) < UE)
 			{
 				MatrixId VIPQQq = FaceValueInterval(MatrixId(P, QQ), Q, i);
-				if (VIPQQq.ncontains(Vector3d(0, 0, 0)))
-					if_then = false;
+				if (VIPQQq.contains(Vector3d(0, 0, 0)))
+					return false;
 			}
-		if (!if_then)
-			return false;
-		//cout << "Step c finished!" << endl;
+
+		//cout << "P-Q' has no root when Q is a critical." << endl;
 
 		// Step d: determinant not contain 0 if then.
 		MatrixId JWPQQ = JacobInterval(MatrixId(P, QQ));			// J(W)(\B_{P,Q'})
 		MatrixId DTPQQ = DeterInterval(JWPQQ, true);				// \det(T_i(\B_{P,Q'}))
-		if_then = true;
 		JWPQQ.add_row();
 		vector<Id> x;												// MatrixId of \B_{P,Q'} in variable form
 		for (int i = 0; i < 4; ++i)
@@ -370,11 +371,9 @@ public:
 				for (int j = 0; j < 4; ++j)
 					JWDTPQQ.set(3, j, DT[i]->deriv<Id>(x, j));
 				if (JWDTPQQ.determinant().contains(0.0))
-					if_then = false;
+					return false;
 			}
-		if (!if_then)
-			return false;
-		//cout << "Step d finished!" << endl;
+		//cout << "P-Q is monotonic with only critical Q." << endl;
 		return true;
 	}
 	bool Strongly_Monotonic(Vector4d P, Vector4d Q)						// Lemma 5.
@@ -383,6 +382,8 @@ public:
 	}
 	bool Weak_Monotonic_3d(Vector4d P, Vector4d Q)					// Second part of lemma 7.
 	{
+		//cout << "Checking 3d weakly monotonic for box (" << P.transpose() << ")-(" << Q.transpose() << ")" << endl;
+
 		// Step 1, DTC(Q)=0 for some i, and DTC(P)!=0 for all i.
 		bool bondary_critical = false;
 		RowVector3d DTP = Deter3(P), DTQ = Deter3(Q);
@@ -395,7 +396,7 @@ public:
 		}
 		if (!bondary_critical)
 			return false;
-		//cout << "Step 1 finished!" << endl;
+		//cout << "Only Q is a critical point." << endl;
 
 		// Step 2, 0 \notin DTC(PQ) for some i.
 		bool exists_monotonic_direct = false;
@@ -405,13 +406,13 @@ public:
 				exists_monotonic_direct = true;
 		if (!exists_monotonic_direct)
 			return false;
-		//cout << "Step 2 finished!" << endl;
+		//cout << "There is a monotonic direction." << endl;
 
 		// Step 3, if DT(Q)!=0 for some i, then 0 \notin DTC(PQ) for the i.
 		for (int i = 0; i < 3; ++i)
-			if (abs(DTQ(i)) < UE && DTPQ(i).contains(0.0))
+			if (abs(DTQ(i)) >= UE && DTPQ(i).contains(0.0))
 				return false;
-		//cout << "Step 3 finished!" << endl;
+		//cout << "Monotonic direction has no criticals." << endl;
 
 		// Step 4, if 0 \in DTC(PQ), then 0 \notin JWDTC(PQ).
 		MatrixId JWPQ = JacobInterval(MatrixId(P, Q));					// J(W)(B)
@@ -425,10 +426,12 @@ public:
 				MatrixId JWDTPQ = JWPQ;									// J(W,\det(T_i))(B)
 				for (int j = 0; j < 4; ++j)
 					JWDTPQ.set(3, j, DTC[i]->deriv<Id>(x, j));
+				//cout << JWDTPQ << endl;
+				//cout << JWDTPQ.determinant() << endl;
 				if (JWDTPQ.determinant().contains(0.0))
 					return false;
 			}
-		//cout << "Step 4 finished!" << endl;
+		//cout << "Q is uniquely critical." << endl;
 
 		return true;
 	}
@@ -448,7 +451,8 @@ public:
 			{
 				KK = get_next(K, l);
 				l /= 2;
-			} while (!IsTerminate(KK, K).empty());
+				cout << "Try box (" << K.transpose() << ")-(" << KK.transpose() << ")" << endl;
+			} while (!IsTerminate(KK, K).empty() && l >= UE);
 			S.push_back(KK);
 			return KK;
 		}
@@ -513,10 +517,13 @@ public:
 		Vector4d K1 = P, K2 = Q;
 		int t = 0;
 		S.push_back(K1);
+		bool output = false;
+		//output = true;
 		while (l > UE && t < 20)
 		{
 			t++;
-			cout << "Cycle " << t << ", now decomposing the box (" << K1.transpose() << ")-(" << K2.transpose() << ")" << endl;
+			if(output)
+				cout << "Cycle " << t << ", now decomposing the box (" << K1.transpose() << ")-(" << K2.transpose() << ")" << endl;
 
 			// Step 2, define S'.
 			SS.clear();
@@ -537,7 +544,8 @@ public:
 				{
 					l /= 2;
 					K2 = get_next(K1, l);
-					cout << "Return to step 2 from step 5(1)" << endl;
+					if (output)
+						cout << "Return to step 2 from step 5(1)" << endl;
 					continue;
 				}
 				else
@@ -566,20 +574,31 @@ public:
 			// Step 7, trace from K2 to get a new K1,K2.
 			K1 = K2;
 			K2 = get_next(K1, l);
-			cout << "Return to step 2 from step 7" << endl;
+			if (output)
+				cout << "Return to step 2 from step 7" << endl;
 		}
 		return S;
 	}
 	vector<pair<Vector4d, Vector4d>> Decompose3D(Vector4d P, Vector4d Q)					// Algorithm 3.
 	{
 		vector<pair<Vector4d, Vector4d>> S;
-		queue<pair<Vector4d, Vector4d>> SS;
+		stack<pair<Vector4d, Vector4d>> SS;
 		SS.push(make_pair(P, Q));
+		int t = 0;
+		bool output = false;
+		//output = true;
 		while (!SS.empty())
 		{
+			t++;
 			// Step 3, extract a box from S'.
-			pair<Vector4d, Vector4d> B= SS.front();
+			pair<Vector4d, Vector4d> B= SS.top();
 			SS.pop();
+
+			if ((B.first - B.second).norm() < UE)
+				continue;
+
+			if (output)
+				cout << "Checking box (" << B.first.transpose() << ")-(" << B.second.transpose() << ")" << endl;
 
 			// Step 4, if no critical points, insert B into S.
 			MatrixId TC = Deter3Interval(MatrixId(B.first, B.second));
@@ -594,7 +613,7 @@ public:
 			}
 
 			// Step 5, if satiesfies lemma 7 (2), then insert B into S.
-			if (Weak_Monotonic_3d(B.first, B.second))
+			if (Weak_Monotonic_3d(B.first, B.second) || Weak_Monotonic_3d(B.second, B.first))
 			{
 				S.push_back(B);
 				continue;
@@ -609,8 +628,8 @@ public:
 			{
 				double l = (B.first - B.second).norm();
 				Vector4d B_third = get_next(B.first, l / 2);
+				SS.push(make_pair(B_third, B.second));
 				SS.push(make_pair(B.first, B_third));
-				SS.push(make_pair(B_third,B.second));
 			}
 			// Step 8, if there are criticals.
 			else
@@ -628,16 +647,18 @@ public:
 						if (SSS[j](0) == SSS[j + 1](0) && SSS[j](1) == SSS[j + 1](1) && SSS[j](2) == SSS[j + 1](2) && SSS[j](3) < SSS[j + 1](3))
 							swap(SSS[j], SSS[j + 1]);
 					}*/
-				SS.push(make_pair(B.first, SSS.front()));
-				for (int i = 0; i < SSS.size() - 1; ++i)
-					SS.push(make_pair(SSS[i], SSS[i + 1]));
 				SS.push(make_pair(SSS.back(), B.second));
+				for (int i = SSS.size() - 2; i >= 0; --i)
+					SS.push(make_pair(SSS[i], SSS[i + 1]));
+				SS.push(make_pair(B.first, SSS.front()));
 			}
 		}
 		return S;
 	}
 	vector<pair<Vector4d, Vector4d>> Curve_Trace(Vector4d ini, vector<Vector4d> term, double l)	// Algorithm 4.
 	{
+		cout << term.size() << endl;
+
 		// Step 1, initialize S and S'.
 		vector<pair<Vector4d, Vector4d>> S;
 		vector<pair<Vector4d, Vector4d>> SS;
@@ -645,37 +666,72 @@ public:
 		MatrixId B;
 		Vector4d P = ini;
 
+		int t = 0;
+		bool output = false;
+		output = true;
+
 		do
 		{
+			++t;
 			// Step 2, trace a point.
 			Vector4d Q = get_next(P, l);
 
 			// Step 3, get a box sequence.
+			if (output)
+				cout << "4D decomposing (" << P.transpose() << ")-(" << Q.transpose() << ")" << endl;
 			vector<Vector4d> SSS = Decompose4D(P, Q, l);
 
-			// Step 4, find the last box.
-			B = MatrixId(SSS[SSS.size() - 2], SSS[SSS.size() - 1]);
+			// Step 4, find the cover box.
+			Vector4d SSS_min = Vector4d(boundary, boundary, boundary, boundary);
+			Vector4d SSS_max = Vector4d(-boundary, -boundary, -boundary, -boundary);
+			for (int i = 0; i < SSS.size(); ++i)
+			{
+				if (SSS_min(0) > SSS[i](0))
+					SSS_min(0) = SSS[i](0);
+				if (SSS_min(1) > SSS[i](1))
+					SSS_min(1) = SSS[i](1);
+				if (SSS_min(2) > SSS[i](2))
+					SSS_min(2) = SSS[i](2);
+				if (SSS_min(3) > SSS[i](3))
+					SSS_min(3) = SSS[i](3);
+				if (SSS_max(0) < SSS[i](0))
+					SSS_max(0) = SSS[i](0);
+				if (SSS_max(1) < SSS[i](1))
+					SSS_max(1) = SSS[i](1);
+				if (SSS_max(2) < SSS[i](2))
+					SSS_max(2) = SSS[i](2);
+				if (SSS_max(3) < SSS[i](3))
+					SSS_max(3) = SSS[i](3);
+			}
+			B = MatrixId(SSS_min, SSS_max);
 
 			// Step 5, insert the boxes into S. If the last box does not contain the terminate points, repeat the steps.
 			for (int i = 0; i < SSS.size() - 1; ++i)
 				S.push_back(make_pair(SSS[i], SSS[i + 1]));
+			if (B(0).min() >= boundary || B(1).min() >= boundary || B(2).min() >= boundary || B(3).min() >= boundary)
+				break;
+			if (B(0).max() <= -boundary || B(1).max() <= -boundary || B(2).max() <= -boundary || B(3).max() <= -boundary)
+				break;
 			for (int i = 0; i < term.size(); ++i)
 				if (B.contains(term[i]))
 					break;
 			P = Q;
-		} while (true);
+		} while (t<100);
 
 		// Step 6, get S.
 
 		// Step 7, decompose boxes in S into 3D strongly monotonic curves.
 		for (int i = 0; i < S.size(); ++i)
 		{
+			if (output)
+				cout << "3D decomposing (" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << ")" << endl;
 			vector<pair<Vector4d, Vector4d>> SSS = Decompose3D(S[i].first, S[i].second);
 			for (int j = 0; j < SSS.size(); ++j)
 				SS.push_back(SSS[j]);
 		}
 
-		// Step 8, return S'.
+		// Step 8, decompose S' into smaller intervals.
+
 		return SS;
 	}
 	void view(ostream& os = cout)
@@ -743,6 +799,7 @@ void test3(trial t)
 void test4(trial t)
 {
 	vector<Vector4d> S = t.Decompose4D(t.initial, t.target, 0.5);
+	cout << endl << "The boxes are:" << endl;
 	for (int i = 0; i < S.size(); ++i)
 		cout << "(" << S[i].transpose() << ")" << endl;
 }
@@ -750,6 +807,7 @@ void test4(trial t)
 void test5(trial t)
 {
 	vector<pair<Vector4d, Vector4d>> S = t.Decompose3D(t.initial, t.target);
+	cout << endl << "The boxes are:" << endl;
 	for (int i = 0; i < S.size(); ++i)
 		cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << ")" << endl;
 }
@@ -758,7 +816,8 @@ void test6(trial t)
 {
 	vector<Vector4d> terminates;
 	terminates.push_back(t.target);
-	vector<pair<Vector4d, Vector4d>> S = t.Curve_Trace(t.initial, terminates, 1.0);
+	vector<pair<Vector4d, Vector4d>> S = t.Curve_Trace(t.initial, terminates, t.stick_size);
+	cout << endl << "The boxes are:" << endl;
 	for (int i = 0; i < S.size(); ++i)
 		cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << ")" << endl;
 }
@@ -766,20 +825,21 @@ void test6(trial t)
 int main(int argc, char* argv[])
 {
 	const char filename[1000] = "../Input/inputs.js";
+	cout << std::setprecision(12) << fixed;
     trial t(read_json(filename));
 	cout << "Test 0 (Newton's method):" << endl;
 	test0(t);
-	cout << "Test 1 (DT vector):" << endl;
+	cout << endl << "Test 1 (DT vector):" << endl;
 	test1(t);
-	cout << "Test 2 (Intersection value at a face):" << endl;
+	cout << endl << "Test 2 (Intersection value at a face):" << endl;
 	test2(t);
-	cout << "Test 3 (Algorithm 1):" << endl;
+	cout << endl << "Test 3 (Algorithm 1):" << endl;
 	test3(t);
-	cout << "Test 4 (Algorithm 2):" << endl;
+	cout << endl << "Test 4 (Algorithm 2):" << endl;
 	test4(t);
-	cout << "Test 5 (Algorithm 3):" << endl;
+	cout << endl << "Test 5 (Algorithm 3):" << endl;
 	test5(t);
-	cout << "Test 6 (Algorithm 4):" << endl;
+	cout << endl << "Test 6 (Algorithm 4):" << endl;
 	test6(t);
 	return 0;
 }
