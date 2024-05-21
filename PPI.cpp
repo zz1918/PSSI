@@ -2,6 +2,7 @@
 
 #include<iostream>
 #include<iomanip>
+#include<ctime>
 #include<random>
 #include<vector>
 #include<stack>
@@ -449,6 +450,8 @@ public:
 		RowVector4d DTK = Deter(K);
 		Vector4d KK;									// K'
 		bool needed = false;
+		bool output = false;
+		//output = true;
 		for (int i = 0; i < 4; ++i)
 			if (abs(DTK(i)) < UE)
 				needed = true;
@@ -458,7 +461,8 @@ public:
 			{
 				KK = get_next(K, l);
 				l /= 2;
-				cout << "Try box (" << K.transpose() << ")-(" << KK.transpose() << ")" << endl;
+				if (output)
+					cout << "Try box (" << K.transpose() << ")-(" << KK.transpose() << ")" << endl;
 			} while (!IsTerminate(KK, K).empty() && l >= UE);
 			S.push_back(KK);
 			return KK;
@@ -664,7 +668,7 @@ public:
 	}
 	vector<pair<Vector4d, Vector4d>> Curve_Trace(Vector4d ini, vector<Vector4d> term, double l,double xi)	// Algorithm 4.
 	{
-		cout << term.size() << endl;
+		//cout << term.size() << endl;
 
 		// Step 1, initialize S and S'.
 		vector<pair<Vector4d, Vector4d>> S;
@@ -675,7 +679,7 @@ public:
 
 		int t = 0;
 		bool output = false;
-		output = true;
+		//output = true;
 
 		do
 		{
@@ -722,8 +726,10 @@ public:
 			for (int i = 0; i < term.size(); ++i)
 				if (B.contains(term[i]))
 					break;
+			if(t<10)
+				term.push_back(Q);;
 			P = Q;
-		} while (t<100);
+		} while (true);
 
 		// Step 6, get S.
 
@@ -846,10 +852,17 @@ void test6(trial t)
 {
 	vector<Vector4d> terminates;
 	terminates.push_back(t.target);
+	clock_t start, end;
+	double duration;
+	start = clock();
 	vector<pair<Vector4d, Vector4d>> S = t.Curve_Trace(t.initial, terminates, t.stick_size, 1.0);
-	cout << endl << "The boxes are:" << endl;
+	end = clock();
+	duration = (end - start) / (double)CLOCKS_PER_SEC;
+	cout << endl << "The boxes are: " << endl;
 	for (int i = 0; i < S.size(); ++i)
 		cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << ")" << endl;
+	cout << "There are " << S.size() << " boxes." << endl;
+	cout << "Cost " << duration << " seconds." << endl;
 }
 
 int main(int argc, char* argv[])
