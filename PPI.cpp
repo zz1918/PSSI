@@ -80,6 +80,7 @@ class trial
 	Rational* DTC[3];							// Determinant function of TC matrix.
 	string vars;
 	Vector3d target3d;
+	bool direction;
 public:
 	double epsilon;
 	Vector4d initial;
@@ -96,6 +97,7 @@ public:
 		target = read_vec4(data["target"]);
 		target3d = read_vec3(data["target3d"]);
 		critical_size = stoi(string(data["critical_size"]));
+		direction = (stoi(string(data["direction"])) > 0 ? true : false);
 		for (int i = 0; i < critical_size; ++i)
 			criticals.push_back(read_vec4(data["criticals"][i]));
 		critical_size_3d = stoi(string(data["critical_size_3d"]));
@@ -177,13 +179,21 @@ public:
 	Vector4d get_next(Vector4d ini,double length)
 	{
 		Vector4d tau = tan_dir(ini);
-		Vector4d Newton_Ini = ini + tau.normalized() * length;
+		Vector4d Newton_Ini;
+		if(direction)
+			Newton_Ini = ini - tau.normalized() * length;
+		else
+			Newton_Ini = ini + tau.normalized() * length;
 		return find_root(Newton_Ini, tau);
 	}
 	Vector4d get_last(Vector4d ini, double length)
 	{
 		Vector4d tau = tan_dir(ini);
-		Vector4d Newton_Ini = ini - tau.normalized() * length;
+		Vector4d Newton_Ini;
+		if (direction)
+			Newton_Ini = ini + tau.normalized() * length;
+		else
+			Newton_Ini = ini - tau.normalized() * length;
 		return find_root(Newton_Ini, tau);
 	}
 	MatrixXd Jacob(Vector4d V)
@@ -779,14 +789,15 @@ public:
 		{
 			double box_size = (Value(SS[i].first) - Value(SS[i].second)).norm();
 			double cover_size = (SS[i].first - SS[i].second).norm();
+			double step_size = 2 * xi;
 			if (box_size < 2 * xi)
 				SSSS.push_back(SS[i]);
 			else
 			{
 				if (output)
 					cout << "Requires to cut box:\n(" << SS[i].first.transpose() << ")-(" << SS[i].second.transpose() << ")" << endl;
-				int k = 2 * int(box_size / xi);
-				Vector4d Q = get_next(SS[i].first, cover_size / k);
+				//int k = 2 * int(box_size / xi);
+				Vector4d Q = get_next(SS[i].first, step_size);
 				if (output)
 					cout << "Cut into:" << endl;
 				SSSS.push_back(make_pair(SS[i].first, Q));
@@ -794,7 +805,7 @@ public:
 					cout << "(" << SS[i].first.transpose() << ")-(" << Q.transpose() << ")" << endl;
 				while ((Value(Q) - Value(SS[i].second)).norm() >= 2 * xi)
 				{
-					Vector4d R = get_next(Q, cover_size / k);
+					Vector4d R = get_next(Q, step_size);
 					SSSS.push_back(make_pair(Q, R));
 					if (output)
 						cout << "(" << Q.transpose() << ")-(" << R.transpose() << ")" << endl;
@@ -901,7 +912,7 @@ void test6(trial t, bool output = false)
 	for (int i = 0; i < S.size(); ++i)
 	{
 		if (output)
-			cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << ")" << endl;
+			cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << "), box size is " << (t.Value(S[i].first) - t.Value(S[i].second)).norm() << endl;
 		if (max_dis < (t.Value(S[i].first) - t.Value(S[i].second)).norm())
 			max_dis = (t.Value(S[i].first) - t.Value(S[i].second)).norm();
 	}
