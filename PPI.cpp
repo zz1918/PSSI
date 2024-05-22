@@ -66,13 +66,13 @@ Matrix<double, 3, 4> solve_j(Vector4d X)
 
 class trial
 {
-	double epsilon;
 	vector<char>* alphabets;
 	vector<Vector4d> criticals;
 	vector<Vector4d> criticals_3d;
 	int critical_size;
 	int critical_size_3d;
-	double boundary;
+	double up_boundary;
+	double low_boundary;
 	Rational* Surface[2][3];
 	Rational* Diff[3];							// The W function.
 	Rational* JDiff[3][4];						// Jacobian function of W function (JW).
@@ -81,6 +81,7 @@ class trial
 	string vars;
 	Vector3d target3d;
 public:
+	double epsilon;
 	Vector4d initial;
 	Vector4d target;
 	double stick_size;
@@ -89,7 +90,8 @@ public:
 	{
 		epsilon = stod(string(data["epsilon"]));
 		stick_size = stod(string(data["stick_size"]));
-		boundary = stod(string(data["boundary"]));
+		up_boundary = stod(string(data["up_boundary"]));
+		low_boundary = stod(string(data["low_boundary"]));
 		initial = read_vec4(data["initial"]);
 		target = read_vec4(data["target"]);
 		target3d = read_vec3(data["target3d"]);
@@ -175,13 +177,13 @@ public:
 	Vector4d get_next(Vector4d ini,double length)
 	{
 		Vector4d tau = tan_dir(ini);
-		Vector4d Newton_Ini = ini - tau.normalized() * length;
+		Vector4d Newton_Ini = ini + tau.normalized() * length;
 		return find_root(Newton_Ini, tau);
 	}
 	Vector4d get_last(Vector4d ini, double length)
 	{
 		Vector4d tau = tan_dir(ini);
-		Vector4d Newton_Ini = ini + tau.normalized() * length;
+		Vector4d Newton_Ini = ini - tau.normalized() * length;
 		return find_root(Newton_Ini, tau);
 	}
 	MatrixXd Jacob(Vector4d V)
@@ -693,8 +695,8 @@ public:
 			vector<Vector4d> SSS = Decompose4D(P, Q, l);
 
 			// Step 4, find the cover box.
-			Vector4d SSS_min = Vector4d(boundary, boundary, boundary, boundary);
-			Vector4d SSS_max = Vector4d(-boundary, -boundary, -boundary, -boundary);
+			Vector4d SSS_min = Vector4d(up_boundary, up_boundary, up_boundary, up_boundary);
+			Vector4d SSS_max = Vector4d(low_boundary, low_boundary, low_boundary, low_boundary);
 			for (int i = 0; i < SSS.size(); ++i)
 			{
 				if (SSS_min(0) > SSS[i](0))
@@ -719,9 +721,9 @@ public:
 			// Step 5, insert the boxes into S. If the last box does not contain the terminate points, repeat the steps.
 			for (int i = 0; i < SSS.size() - 1; ++i)
 				S.push_back(make_pair(SSS[i], SSS[i + 1]));
-			if (B(0).min() >= boundary || B(1).min() >= boundary || B(2).min() >= boundary || B(3).min() >= boundary)
+			if (B(0).min() >= up_boundary || B(1).min() >= up_boundary || B(2).min() >= up_boundary || B(3).min() >= up_boundary)
 				break;
-			if (B(0).max() <= -boundary || B(1).max() <= -boundary || B(2).max() <= -boundary || B(3).max() <= -boundary)
+			if (B(0).max() <= low_boundary || B(1).max() <= low_boundary || B(2).max() <= low_boundary || B(3).max() <= low_boundary)
 				break;
 			for (int i = 0; i < term.size(); ++i)
 				if (B.contains(term[i]))
@@ -750,7 +752,7 @@ public:
 		{
 			double box_size = (Value(SS[i].first) - Value(SS[i].second)).norm();
 			double cover_size = (SS[i].first - SS[i].second).norm();
-			if (box_size < xi)
+			if (box_size < 2 * xi)
 				SSSS.push_back(SS[i]);
 			else
 			{
@@ -855,14 +857,20 @@ void test6(trial t)
 	clock_t start, end;
 	double duration;
 	start = clock();
-	vector<pair<Vector4d, Vector4d>> S = t.Curve_Trace(t.initial, terminates, t.stick_size, 1.0);
+	vector<pair<Vector4d, Vector4d>> S = t.Curve_Trace(t.initial, terminates, t.stick_size, t.epsilon);
 	end = clock();
 	duration = (end - start) / (double)CLOCKS_PER_SEC;
 	cout << endl << "The boxes are: " << endl;
+	double max_dis = 0;
 	for (int i = 0; i < S.size(); ++i)
+	{
 		cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << ")" << endl;
+		if (max_dis < (S[i].first - S[i].second).norm())
+			max_dis = (S[i].first - S[i].second).norm();
+	}
 	cout << "There are " << S.size() << " boxes." << endl;
 	cout << "Cost " << duration << " seconds." << endl;
+	cout << "Max distance is " << max_dis << endl;
 }
 
 int main(int argc, char* argv[])

@@ -107,7 +107,7 @@ public:
 	void set_pw(int p)
 	{
 		assert(p >= 0);
-		set_pw(unsigned int(p));
+		set_pw((unsigned int)(p));
 	}
 	void set_left(Rational* r)
 	{
