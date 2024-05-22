@@ -909,16 +909,20 @@ void test6(trial t, bool output = false)
 	duration = (end - start) / (double)CLOCKS_PER_SEC;
 	cout << endl << "The boxes are: " << endl;
 	double max_dis = 0;
+	double max_box = 0;
 	for (int i = 0; i < S.size(); ++i)
 	{
 		if (output)
-			cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << "), box size is " << (t.Value(S[i].first) - t.Value(S[i].second)).norm() << endl;
-		if (max_dis < (t.Value(S[i].first) - t.Value(S[i].second)).norm())
+			cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << "), 3D box size is " << (t.Value(S[i].first) - t.Value(S[i].second)).norm() << endl;
+		if (max_dis < (t.Value(S[i].first) - t.Value(S[i].second)).norm() && i > 0)
 			max_dis = (t.Value(S[i].first) - t.Value(S[i].second)).norm();
+		if (max_box < (S[i].first - S[i].second).norm() && i > 0)
+			max_box = (S[i].first - S[i].second).norm();
 	}
 	cout << "There are " << S.size() << " boxes." << endl;
 	cout << "Cost " << duration << " seconds." << endl;
-	cout << "Max distance is " << max_dis << endl;
+	cout << "Max 4D distance is " << max_box << endl;
+	cout << "Max 3D distance is " << max_dis << endl;
 }
 
 int main(int argc, char* argv[])
