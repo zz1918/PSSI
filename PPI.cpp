@@ -918,22 +918,46 @@ int main(int argc, char* argv[])
 		precision = stoi(argv[1]);
 	cout << std::setprecision(precision) << fixed;
     trial t(read_json(filename));
-	cout << "Test 0 (Newton's method):" << endl;
-	test0(t);
-	cout << endl << "Test 1 (DT vector):" << endl;
-	test1(t);
-	cout << endl << "Test 2 (Intersection value at a face):" << endl;
-	test2(t);
-	cout << endl << "Test 3 (Algorithm 1):" << endl;
-	test3(t);
-	cout << endl << "Test 4 (Algorithm 2):" << endl;
-	test4(t);
-	cout << endl << "Test 5 (Algorithm 3):" << endl;
-	test5(t);
-	cout << endl << "Test 6 (Algorithm 4):" << endl;
 	if (argc > 2)
-		test6(t, true);
+	{
+		switch (stoi(argv[2]))
+		{
+		case 0:
+			cout << "Test 0 (Newton's method):" << endl;
+			test0(t);
+			break;
+		case 1:
+			cout << endl << "Test 1 (DT vector):" << endl;
+			test1(t);
+			break;
+		case 2:
+			cout << endl << "Test 2 (Intersection value at a face):" << endl;
+			test2(t);
+			break;
+		case 3:
+			cout << endl << "Test 3 (Algorithm 1):" << endl;
+			test3(t);
+			break;
+		case 4:
+			cout << endl << "Test 4 (Algorithm 2):" << endl;
+			test4(t);
+			break;
+		case 5:
+			cout << endl << "Test 5 (Algorithm 3):" << endl;
+			test5(t);
+			break;
+		case 6:
+			cout << endl << "Test 6 (Algorithm 4):" << endl;
+			test6(t, true);
+			break;
+		default:
+			cout << "Hello World!" << endl;
+		}
+	}
 	else
+	{
+		cout << "Test 6 (Algorithm 4):" << endl;
 		test6(t);
+	}
 	return 0;
 }
