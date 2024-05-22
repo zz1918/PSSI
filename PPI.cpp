@@ -530,6 +530,11 @@ public:
 		Vector4d K1 = P, K2 = Q;
 		int t = 0;
 		S.push_back(K1);
+		if (IsTerminate(K1, K2).empty() || IsTerminate(K2, K1).empty())
+		{
+			S.push_back(K2);
+			return S;
+		}
 		bool output = false;
 		//output = true;
 		while (l > UE && t < 20)
@@ -545,8 +550,12 @@ public:
 			K1 = basic_trace(K1, S, l);
 
 			// Step 4, if K1-K2 is strongly monotonic, then end the algorithm.
-			if (IsTerminate(K1, K2).empty())
+			if (IsTerminate(K1, K2).empty()|| IsTerminate(K2, K1).empty())
+			{
 				S.push_back(K2);
+				if ((K2 - Q).norm() < UE)
+					break;
+			}
 			else
 			{
 				// Step 5, find all criticals between K1 and K2 and push into SS.
@@ -697,8 +706,12 @@ public:
 			// Step 4, find the cover box.
 			Vector4d SSS_min = Vector4d(up_boundary, up_boundary, up_boundary, up_boundary);
 			Vector4d SSS_max = Vector4d(low_boundary, low_boundary, low_boundary, low_boundary);
+			if (output)
+				cout << "4D decompose result:" << endl;
 			for (int i = 0; i < SSS.size(); ++i)
 			{
+				if (output)
+					cout << "(" << SSS[i].transpose() << ")" << endl;
 				if (SSS_min(0) > SSS[i](0))
 					SSS_min(0) = SSS[i](0);
 				if (SSS_min(1) > SSS[i](1))
@@ -733,6 +746,13 @@ public:
 			P = Q;
 		} while (true);
 
+		if(output)
+		{
+			cout << "4D decompose finished. Gives the following boxes:" << endl;
+			for (int i = 0; i < S.size(); ++i)
+				cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << ")" << endl;
+		}
+
 		// Step 6, get S.
 
 		// Step 7, decompose boxes in S into 3D strongly monotonic curves.
@@ -743,6 +763,13 @@ public:
 			vector<pair<Vector4d, Vector4d>> SSS = Decompose3D(S[i].first, S[i].second);
 			for (int j = 0; j < SSS.size(); ++j)
 				SS.push_back(SSS[j]);
+		}
+
+		if (output)
+		{
+			cout << "3D decompose finished. Gives the following boxes:" << endl;
+			for (int i = 0; i < SS.size(); ++i)
+				cout << "(" << SS[i].first.transpose() << ")-(" << SS[i].second.transpose() << ")" << endl;
 		}
 
 		// Step 8, decompose S' into smaller intervals.
@@ -859,7 +886,7 @@ void test5(trial t)
 		cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << ")" << endl;
 }
 
-void test6(trial t)
+void test6(trial t, bool output = false)
 {
 	vector<Vector4d> terminates;
 	terminates.push_back(t.target);
@@ -873,7 +900,8 @@ void test6(trial t)
 	double max_dis = 0;
 	for (int i = 0; i < S.size(); ++i)
 	{
-		//cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << ")" << endl;
+		if (output)
+			cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << ")" << endl;
 		if (max_dis < (t.Value(S[i].first) - t.Value(S[i].second)).norm())
 			max_dis = (t.Value(S[i].first) - t.Value(S[i].second)).norm();
 	}
@@ -885,7 +913,10 @@ void test6(trial t)
 int main(int argc, char* argv[])
 {
 	const char filename[1000] = "../Input/inputs.js";
-	cout << std::setprecision(6) << fixed;
+	int precision = 6;
+	if (argc > 1)
+		precision = stoi(argv[1]);
+	cout << std::setprecision(precision) << fixed;
     trial t(read_json(filename));
 	cout << "Test 0 (Newton's method):" << endl;
 	test0(t);
@@ -900,6 +931,9 @@ int main(int argc, char* argv[])
 	cout << endl << "Test 5 (Algorithm 3):" << endl;
 	test5(t);
 	cout << endl << "Test 6 (Algorithm 4):" << endl;
-	test6(t);
+	if (argc > 2)
+		test6(t, true);
+	else
+		test6(t);
 	return 0;
 }
