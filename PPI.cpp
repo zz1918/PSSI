@@ -756,17 +756,26 @@ public:
 				SSSS.push_back(SS[i]);
 			else
 			{
+				if (output)
+					cout << "Requires to cut box:\n(" << SS[i].first.transpose() << ")-(" << SS[i].second.transpose() << ")" << endl;
 				int k = 2 * int(box_size / xi);
 				Vector4d Q = get_next(SS[i].first, cover_size / k);
+				if (output)
+					cout << "Cut into:" << endl;
 				SSSS.push_back(make_pair(SS[i].first, Q));
-				while (MatrixId(SS[i].first, SS[i].second).contains(Q))
+				if (output)
+					cout << "(" << SS[i].first.transpose() << ")-(" << Q.transpose() << ")" << endl;
+				while ((Value(Q) - Value(SS[i].second)).norm() >= 2 * xi)
 				{
 					Vector4d R = get_next(Q, cover_size / k);
-					if (MatrixId(SS[i].first, SS[i].second).contains(R))
-						SSSS.push_back(make_pair(Q, R));
+					SSSS.push_back(make_pair(Q, R));
+					if (output)
+						cout << "(" << Q.transpose() << ")-(" << R.transpose() << ")" << endl;
 					Q = R;
 				}
 				SSSS.push_back(make_pair(Q, SS[i].second));
+				if (output)
+					cout << "(" << Q.transpose() << ")-(" << SS[i].second.transpose() << ")" << endl;
 			}
 		}
 
@@ -864,9 +873,9 @@ void test6(trial t)
 	double max_dis = 0;
 	for (int i = 0; i < S.size(); ++i)
 	{
-		cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << ")" << endl;
-		if (max_dis < (S[i].first - S[i].second).norm())
-			max_dis = (S[i].first - S[i].second).norm();
+		//cout << "(" << S[i].first.transpose() << ")-(" << S[i].second.transpose() << ")" << endl;
+		if (max_dis < (t.Value(S[i].first) - t.Value(S[i].second)).norm())
+			max_dis = (t.Value(S[i].first) - t.Value(S[i].second)).norm();
 	}
 	cout << "There are " << S.size() << " boxes." << endl;
 	cout << "Cost " << duration << " seconds." << endl;
@@ -876,7 +885,7 @@ void test6(trial t)
 int main(int argc, char* argv[])
 {
 	const char filename[1000] = "../Input/inputs.js";
-	cout << std::setprecision(12) << fixed;
+	cout << std::setprecision(6) << fixed;
     trial t(read_json(filename));
 	cout << "Test 0 (Newton's method):" << endl;
 	test0(t);
